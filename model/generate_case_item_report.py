@@ -148,9 +148,15 @@ def canonicalize_columns(df: pd.DataFrame) -> pd.DataFrame:
 
 def clean_and_cast(df: pd.DataFrame) -> pd.DataFrame:
     for col in ["case number", "surgen name"]:
-        df[col] = df[col].astype(str).str.strip()
+        if col in df.columns:
+            try:
+                df[col] = df[col].astype(str).str.strip()
+            except Exception:
+                # Fallback: simple astype to string without .str ops
+                df[col] = df[col].astype(str)
     for col in ["surgeon score", "item price", "total quantity"]:
-        df[col] = pd.to_numeric(df[col], errors="coerce").fillna(0)
+        if col in df.columns:
+            df[col] = pd.to_numeric(df[col], errors="coerce").fillna(0)
     return df
 
 
