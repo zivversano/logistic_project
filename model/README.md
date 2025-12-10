@@ -85,3 +85,15 @@ python model/compute_item_combinations.py --threshold 3000
 python model/watch_data.py            # poll every 5s
 python model/watch_data.py --interval 2
 ```
+
+## Outcome scores per case
+- Script: `model/compute_outcome_scores.py`
+- Purpose: score each case (0-1) based on 14 clinical parameters; classify outcome into good/moderate/bad.
+- Default input: `data/hernia both sides final copilot.xlsx`
+- Default output: `summary_files/case_outcome_scores.xlsx`
+
+### Usage
+```bash
+python model/compute_outcome_scores.py
+python model/compute_outcome_scores.py --input "data/hernia both sides final copilot.xlsx" --output summary_files/case_outcome_scores.xlsx
+```

@@ -7,7 +7,8 @@ Steps (per file):
 2) Compute surgeon averages with cost group
 3) Group items per case with cost group
 4) Summarize item combinations
-5) Move the processed Excel from data/ to archive/
+5) Compute outcome scores per case
+6) Move the processed Excel from data/ to archive/
 
 Pre-step (once per run):
 - Extract any archives in data/ into archive/ using model/extract_data.py
@@ -101,6 +102,7 @@ def run_pipeline_for_file(input_file: Path) -> None:
         "compute_surgeon_averages": ROOT / "summary_files" / f"{prefix}_surgeon_avg_prices.xlsx",
         "compute_case_items": ROOT / "summary_files" / f"{prefix}_case_items_detail.xlsx",
         "compute_item_combinations": ROOT / "summary_files" / f"{prefix}_item_combinations.xlsx",
+        "compute_outcome_scores": ROOT / "summary_files" / f"{prefix}_case_outcome_scores.xlsx",
     }
 
     # Step 1: surgery totals
@@ -130,6 +132,14 @@ def run_pipeline_for_file(input_file: Path) -> None:
     # Step 4: item combinations
     result = subprocess.run(
         [PYTHON, str(ROOT / "model" / "compute_item_combinations.py"), "--input", str(input_file), "--output", str(outputs["compute_item_combinations"])],
+        cwd=ROOT,
+    )
+    if result.returncode != 0:
+        raise SystemExit(result.returncode)
+
+    # Step 5: outcome scores
+    result = subprocess.run(
+        [PYTHON, str(ROOT / "model" / "compute_outcome_scores.py"), "--input", str(input_file), "--output", str(outputs["compute_outcome_scores"])],
         cwd=ROOT,
     )
     if result.returncode != 0:

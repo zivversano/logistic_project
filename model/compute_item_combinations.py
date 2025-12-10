@@ -21,6 +21,8 @@ from pathlib import Path
 import sys
 import pandas as pd
 
+from compute_outcome_scores import build_scores
+
 DEFAULT_INPUT = Path("data/hernia both sides final copilot.xlsx")
 DEFAULT_OUTPUT = Path("summary_files/item_combinations.xlsx")
 REQUIRED_COLUMNS = {
@@ -85,6 +87,13 @@ def build_case_level(df: pd.DataFrame) -> pd.DataFrame:
     return pd.DataFrame(grouped)
 
 
+def attach_outcomes(case_df: pd.DataFrame, outcomes: pd.DataFrame) -> pd.DataFrame:
+    if outcomes is None or outcomes.empty:
+        case_df["outcome group"] = None
+        return case_df
+    return case_df.merge(outcomes[["case number", "outcome group"]], on="case number", how="left")
+
+
 def compute_surgeon_groups(case_df: pd.DataFrame, threshold: float | None) -> tuple[pd.DataFrame, float]:
     per_surgeon = (
         case_df.groupby("surgeon name")
@@ -130,6 +139,13 @@ def aggregate_combinations(case_df: pd.DataFrame) -> pd.DataFrame:
                 seen.append(val)
         return ", ".join(seen)
 
+    def outcomes_list(series):
+        seen = []
+        for val in series:
+            if pd.notna(val) and val not in seen:
+                seen.append(val)
+        return ", ".join(seen)
+
     combo_df = (
         case_df.groupby("items")
         .agg({
@@ -139,6 +155,7 @@ def aggregate_combinations(case_df: pd.DataFrame) -> pd.DataFrame:
             "total price": "mean",
             "all_ procedures": lambda s: ", ".join(sorted({str(v) for v in case_df.loc[s.index, "all_ procedures"] if pd.notna(v)})),
             "all_ procedures code": lambda s: ", ".join(sorted({str(v) for v in case_df.loc[s.index, "all_ procedures code"] if pd.notna(v)})),
+            "outcome group": outcomes_list,
         })
         .reset_index()
     )
@@ -151,6 +168,7 @@ def aggregate_combinations(case_df: pd.DataFrame) -> pd.DataFrame:
         "total price": "avg total price",
         "all_ procedures": "all procedures",
         "all_ procedures code": "all procedures code",
+        "outcome group": "outcome group",
     })
 
     # Reorder columns
@@ -162,6 +180,7 @@ def aggregate_combinations(case_df: pd.DataFrame) -> pd.DataFrame:
         "avg total price",
         "all procedures",
         "all procedures code",
+        "outcome group",
     ]]
 
     return combo_df
@@ -190,6 +209,8 @@ def main():
     try:
         df = load_data(args.input)
         case_df = build_case_level(df)
+        outcomes = build_scores(df)
+        case_df = attach_outcomes(case_df, outcomes)
         per_surgeon, threshold_used = compute_surgeon_groups(case_df, args.threshold)
         case_df = attach_price_group(case_df, per_surgeon)
         combo_df = aggregate_combinations(case_df)
