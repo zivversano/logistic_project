@@ -75,3 +75,13 @@ python model/compute_item_combinations.py --input "data/hernia both sides final 
 # Optional: threshold for cheap/expensive price groups
 python model/compute_item_combinations.py --threshold 3000
 ```
+
+## Data watcher
+- Script: `model/watch_data.py`
+- Purpose: poll `data/` for new Excel files and trigger `main.py` automatically. Since `main.py` moves processed files to `archive/`, each new file is handled once.
+
+### Usage
+```bash
+python model/watch_data.py            # poll every 5s
+python model/watch_data.py --interval 2
+```
