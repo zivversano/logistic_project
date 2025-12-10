@@ -31,6 +31,8 @@ REQUIRED_COLUMNS = {
     "item name",
     "quantity",
     "total price",
+    "all_ procedures",
+    "all_ procedures code",
 }
 
 
@@ -72,6 +74,8 @@ def build_case_level(df: pd.DataFrame) -> pd.DataFrame:
             "case number": case_number,
             "surgeon name": first_non_null(g["surgeon name"]),
             "surgeon score": first_non_null(g["surgeon score"]),
+            "all_ procedures": first_non_null(g["all_ procedures"]),
+            "all_ procedures code": first_non_null(g["all_ procedures code"]),
             "total price": g["total price"].sum(),
             "total item quantity": g["quantity"].sum(),
             "items": concat_items(g),
@@ -79,6 +83,10 @@ def build_case_level(df: pd.DataFrame) -> pd.DataFrame:
         grouped.append(record)
 
     case_df = pd.DataFrame(grouped)
+    case_df = case_df.rename(columns={
+        "all_ procedures": "all procedures",
+        "all_ procedures code": "all procedures code",
+    })
     return case_df
 
 
@@ -110,7 +118,21 @@ def attach_price_group(case_df: pd.DataFrame, per_surgeon: pd.DataFrame) -> pd.D
         on="surgeon name",
         how="left",
     )
-    return enriched
+    # Reorder columns for clarity
+    cols = [
+        "case number",
+        "surgeon name",
+        "surgeon score",
+        "all procedures",
+        "all procedures code",
+        "surgeon price group",
+        "items",
+        "total item quantity",
+        "total price",
+    ]
+    # Include any extra columns at the end
+    ordered = [c for c in cols if c in enriched.columns] + [c for c in enriched.columns if c not in cols]
+    return enriched[ordered]
 
 
 def write_output(df: pd.DataFrame, output_path: Path) -> None:

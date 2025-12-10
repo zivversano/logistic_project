@@ -26,6 +26,8 @@ REQUIRED_COLUMNS = {
     "surgeon score",
     "total price",
     "quantity",
+    "all_ procedures",
+    "all_ procedures code",
 }
 
 
@@ -58,6 +60,8 @@ def aggregate(df: pd.DataFrame) -> pd.DataFrame:
         .agg({
             "surgeon name": first_non_null,
             "surgeon score": first_non_null,
+            "all_ procedures": first_non_null,
+            "all_ procedures code": first_non_null,
             "total price": "sum",
             "quantity": "sum",
         })
@@ -68,6 +72,8 @@ def aggregate(df: pd.DataFrame) -> pd.DataFrame:
         "case number": "case number",
         "surgeon name": "surgeon name",
         "surgeon score": "surgeon score",
+        "all_ procedures": "all procedures",
+        "all_ procedures code": "all procedures code",
         "quantity": "total quantity",
         "total price": "total price",
     })
@@ -77,6 +83,8 @@ def aggregate(df: pd.DataFrame) -> pd.DataFrame:
         "case number",
         "surgeon name",
         "surgeon score",
+        "all procedures",
+        "all procedures code",
         "total quantity",
         "total price",
     ]]

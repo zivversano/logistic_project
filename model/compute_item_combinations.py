@@ -30,6 +30,8 @@ REQUIRED_COLUMNS = {
     "item name",
     "quantity",
     "total price",
+    "all_ procedures",
+    "all_ procedures code",
 }
 
 
@@ -73,6 +75,8 @@ def build_case_level(df: pd.DataFrame) -> pd.DataFrame:
             "case number": case_number,
             "surgeon name": first_non_null(g["surgeon name"]),
             "surgeon score": first_non_null(g["surgeon score"]),
+            "all_ procedures": first_non_null(g["all_ procedures"]),
+            "all_ procedures code": first_non_null(g["all_ procedures code"]),
             "total price": g["total price"].sum(),
             "items": concat_items(g),
         }
@@ -133,6 +137,8 @@ def aggregate_combinations(case_df: pd.DataFrame) -> pd.DataFrame:
             "surgeon name": lambda s: surgeons_list(zip(s, case_df.loc[s.index, "surgeon score"])),
             "surgeon price group": groups_list,
             "total price": "mean",
+            "all_ procedures": lambda s: ", ".join(sorted({str(v) for v in case_df.loc[s.index, "all_ procedures"] if pd.notna(v)})),
+            "all_ procedures code": lambda s: ", ".join(sorted({str(v) for v in case_df.loc[s.index, "all_ procedures code"] if pd.notna(v)})),
         })
         .reset_index()
     )
@@ -143,6 +149,8 @@ def aggregate_combinations(case_df: pd.DataFrame) -> pd.DataFrame:
         "surgeon name": "surgeons (score)",
         "surgeon price group": "surgeon price group",
         "total price": "avg total price",
+        "all_ procedures": "all procedures",
+        "all_ procedures code": "all procedures code",
     })
 
     # Reorder columns
@@ -152,6 +160,8 @@ def aggregate_combinations(case_df: pd.DataFrame) -> pd.DataFrame:
         "surgeons (score)",
         "surgeon price group",
         "avg total price",
+        "all procedures",
+        "all procedures code",
     ]]
 
     return combo_df

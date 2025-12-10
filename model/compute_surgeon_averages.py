@@ -30,6 +30,8 @@ REQUIRED_COLUMNS = {
     "total price",
     "hospital",
     "quantity",
+    "all_ procedures",
+    "all_ procedures code",
 }
 
 
@@ -62,6 +64,8 @@ def aggregate_per_case(df: pd.DataFrame) -> pd.DataFrame:
             "surgeon name": first_non_null,
             "surgeon score": first_non_null,
             "hospital": first_non_null,
+            "all_ procedures": first_non_null,
+            "all_ procedures code": first_non_null,
             "total price": "sum",
             "quantity": "sum",
         })
@@ -78,6 +82,8 @@ def aggregate_per_surgeon(per_case: pd.DataFrame) -> pd.DataFrame:
             "case number": pd.Series.nunique,  # number of unique cases
             "surgeon score": first_non_null,
             "hospital": first_non_null,
+            "all_ procedures": lambda s: ", ".join(sorted({str(v) for v in s if pd.notna(v)})),
+            "all_ procedures code": lambda s: ", ".join(sorted({str(v) for v in s if pd.notna(v)})),
         })
         .reset_index()
     )
@@ -85,6 +91,8 @@ def aggregate_per_surgeon(per_case: pd.DataFrame) -> pd.DataFrame:
     per_surgeon = per_surgeon.rename(columns={
         "total price": "avg price for surgery",
         "case number": "number of surgeries",
+        "all_ procedures": "all procedures",
+        "all_ procedures code": "all procedures code",
     })
 
     per_surgeon = per_surgeon[[
@@ -93,6 +101,8 @@ def aggregate_per_surgeon(per_case: pd.DataFrame) -> pd.DataFrame:
         "number of surgeries",
         "surgeon score",
         "hospital",
+        "all procedures",
+        "all procedures code",
     ]]
     return per_surgeon
 
