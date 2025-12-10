@@ -1,0 +1,36 @@
+version: "3.9"
+
+services:
+  db:
+    image: postgres:15-alpine
+    container_name: logistic-db
+    environment:
+      POSTGRES_USER: logistic
+      POSTGRES_PASSWORD: logistic
+      POSTGRES_DB: logistic
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - "9090:5432"
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "logistic"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  pipeline:
+    image: python:3.11-slim
+    container_name: logistic-pipeline
+    working_dir: /app
+    volumes:
+      - ./:/app
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgres://logistic:logistic@db:5432/logistic
+    # Install deps (includes psycopg2-binary for DB connectivity) and keep watcher alive.
+    command: ["/bin/sh", "-c", "pip install --no-cache-dir pandas openpyxl psycopg2-binary && python model/watch_data.py --interval 5"]
+
+volumes:
+  pgdata:

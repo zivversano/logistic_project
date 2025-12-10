@@ -3,26 +3,25 @@
 Compute outcome scores per case with categorical grouping.
 
 Score logic (per unique case):
-- Evaluate 14 parameters as booleans:
-  1) patient age > 65
-  2) ER addmission == 1
-  3) revision == 1
-  4) moving to other hospital == 1
-  5) re-addmission == 1
-  6) blood in addmission == 1
-  7) antibiotic in addmission == 1
-  8) First VAS > 7
-  9) surgery length (min) > Q75 of surgery length (min)
- 10) recovery length (min) > Q75 of recovery length (min)
- 11) calculate length of stay (hours) > Q75 of calculate length of stay (hours)
- 12) blood pressure diff % > 25
- 13) HR diff % > 25
- 14) SPO2 diff % > 10
-- Score = (number of positive parameters) / 14 (range 0-1)
-- Outcome group:
-    good outcome     : positives < 3
-    moderate outcome : 3 <= positives <= 6
-    bad outcome      : positives > 6
+- Evaluate 13 parameters as booleans, each with a weight when true:
+    ER addmission = 0.08
+    revision = 0.08
+    moving to other hospital = 0.08
+    re-admission = 0.08
+    blood in addmission = 0.06
+    antibiotic in addmission = 0.06
+    First VAS > 7 = 0.04
+    surgery length (min) > Q75 of surgery length (min) = 0.16
+    recovery length (min) > Q75 of recovery length (min) = 0.04
+    calculate length of stay (hours) > Q75 of calculate length of stay (hours) = 0.12
+    blood pressure diff % > 25 = 0.04
+    HR diff % > 25 = 0.04
+    SPO2 diff % > 10 = 0.04
+- Score = (sum of weights for true parameters) / total weight (range 0-1)
+- Outcome group (based on score):
+    good outcome     : score < 3/13
+    moderate outcome : 3/13 <= score <= 6/13
+    bad outcome      : score > 6/13
 
 Output columns:
 - case number
@@ -46,7 +45,6 @@ DEFAULT_OUTPUT = Path("summary_files/case_outcome_scores.xlsx")
 # Column keys normalized to lowercase/stripped
 COLS = {
     "case": "case number",
-    "age": "patient  age",
     "er": "er addmission",
     "revision": "revision",
     "other_hosp": "moving to other hospital",
@@ -63,7 +61,6 @@ COLS = {
 }
 
 PARAM_KEYS = [
-    "age",
     "er",
     "revision",
     "other_hosp",
@@ -78,7 +75,25 @@ PARAM_KEYS = [
     "hr_diff",
     "spo2_diff",
 ]
-TOTAL_PARAMS = len(PARAM_KEYS)
+
+WEIGHTS = {
+    "er": 0.08,
+    "revision": 0.08,
+    "other_hosp": 0.08,
+    "readm": 0.08,
+    "blood_adm": 0.06,
+    "abx_adm": 0.06,
+    "first_vas": 0.04,
+    "surg_len": 0.16,
+    "recov_len": 0.04,
+    "stay_hours": 0.12,
+    "bp_diff": 0.04,
+    "hr_diff": 0.04,
+    "spo2_diff": 0.04,
+}
+TOTAL_WEIGHT = sum(WEIGHTS.values())
+GOOD_THRESHOLD = 3 / 13
+MODERATE_THRESHOLD = 6 / 13
 
 
 def normalize_columns(df: pd.DataFrame) -> pd.DataFrame:
@@ -114,7 +129,6 @@ def agg_case_level(df: pd.DataFrame) -> pd.DataFrame:
 
 def evaluate_flags(row: pd.Series, thresholds: dict) -> dict:
     flags = {
-        "age": pd.to_numeric(row[COLS["age"]], errors="coerce") > 65,
         "er": pd.to_numeric(row[COLS["er"]], errors="coerce") == 1,
         "revision": pd.to_numeric(row[COLS["revision"]], errors="coerce") == 1,
         "other_hosp": pd.to_numeric(row[COLS["other_hosp"]], errors="coerce") == 1,
@@ -132,10 +146,10 @@ def evaluate_flags(row: pd.Series, thresholds: dict) -> dict:
     return flags
 
 
-def group_outcome(count: int) -> str:
-    if count < 3:
+def group_outcome(score: float) -> str:
+    if score < GOOD_THRESHOLD:
         return "good outcome"
-    if 3 <= count <= 6:
+    if GOOD_THRESHOLD <= score <= MODERATE_THRESHOLD:
         return "moderate outcome"
     return "bad outcome"
 
@@ -150,12 +164,13 @@ def build_scores(df: pd.DataFrame) -> pd.DataFrame:
     for _, row in cases.iterrows():
         flags = evaluate_flags(row, thresholds)
         positives = sum(bool(v) for v in flags.values())
-        score = round(positives / TOTAL_PARAMS, 4)
+        weighted_sum = sum(WEIGHTS[k] for k, v in flags.items() if v)
+        score = round(weighted_sum / TOTAL_WEIGHT, 4)
         records.append({
             "case number": row[COLS["case"]],
             "positive parameters": positives,
             "score": score,
-            "outcome group": group_outcome(positives),
+            "outcome group": group_outcome(score),
         })
     return pd.DataFrame(records)
 

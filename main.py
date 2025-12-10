@@ -32,6 +32,7 @@ DATA_DIR = ROOT / "data"
 ARCHIVE_DIR = ROOT / "archive"
 
 EXTRACT_SCRIPT = ROOT / "model" / "extract_data.py"
+DOCKER_COMPOSE = ["docker", "compose"]
 
 
 def run_script(script_path: Path) -> None:
@@ -39,6 +40,14 @@ def run_script(script_path: Path) -> None:
     result = subprocess.run([PYTHON, str(script_path)], cwd=ROOT)
     if result.returncode != 0:
         raise SystemExit(result.returncode)
+
+
+def ensure_postgres():
+    """Start Postgres via docker compose in detached mode."""
+    print("\n=== Ensuring Postgres is up (docker compose up -d db) ===")
+    result = subprocess.run(DOCKER_COMPOSE + ["up", "-d", "db"], cwd=ROOT)
+    if result.returncode != 0:
+        print("docker compose up -d db failed; continuing without container", file=sys.stderr)
 
 
 def move_input_file(input_file: Path):
@@ -149,6 +158,8 @@ def run_pipeline_for_file(input_file: Path) -> None:
 
 
 def main():
+    ensure_postgres()
+
     # Pre-step: extract archives if any
     run_script(EXTRACT_SCRIPT)
 
