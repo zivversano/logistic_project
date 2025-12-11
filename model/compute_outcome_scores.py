@@ -27,6 +27,7 @@ Output columns:
 - case number
 - positive parameters
 - score
+- normalized score (0-100; lower raw score -> higher normalized)
 - outcome group
 
 Usage:
@@ -166,10 +167,12 @@ def build_scores(df: pd.DataFrame) -> pd.DataFrame:
         positives = sum(bool(v) for v in flags.values())
         weighted_sum = sum(WEIGHTS[k] for k, v in flags.items() if v)
         score = round(weighted_sum / TOTAL_WEIGHT, 4)
+        normalized_score = round((1 - score) * 100, 2)
         records.append({
             "case number": row[COLS["case"]],
             "positive parameters": positives,
             "score": score,
+            "normalized score (0-100)": normalized_score,
             "outcome group": group_outcome(score),
         })
     return pd.DataFrame(records)

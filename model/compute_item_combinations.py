@@ -90,8 +90,13 @@ def build_case_level(df: pd.DataFrame) -> pd.DataFrame:
 def attach_outcomes(case_df: pd.DataFrame, outcomes: pd.DataFrame) -> pd.DataFrame:
     if outcomes is None or outcomes.empty:
         case_df["outcome group"] = None
+        case_df["normalized score (0-100)"] = None
         return case_df
-    return case_df.merge(outcomes[["case number", "outcome group"]], on="case number", how="left")
+    return case_df.merge(
+        outcomes[["case number", "outcome group", "normalized score (0-100)"]],
+        on="case number",
+        how="left",
+    )
 
 
 def compute_surgeon_groups(case_df: pd.DataFrame, threshold: float | None) -> tuple[pd.DataFrame, float]:
@@ -153,6 +158,7 @@ def aggregate_combinations(case_df: pd.DataFrame) -> pd.DataFrame:
             "surgeon name": lambda s: surgeons_list(zip(s, case_df.loc[s.index, "surgeon score"])),
             "surgeon price group": groups_list,
             "total price": "mean",
+            "normalized score (0-100)": "mean",
             "all_ procedures": lambda s: ", ".join(sorted({str(v) for v in case_df.loc[s.index, "all_ procedures"] if pd.notna(v)})),
             "all_ procedures code": lambda s: ", ".join(sorted({str(v) for v in case_df.loc[s.index, "all_ procedures code"] if pd.notna(v)})),
             "outcome group": outcomes_list,
@@ -178,6 +184,7 @@ def aggregate_combinations(case_df: pd.DataFrame) -> pd.DataFrame:
         "surgeons (score)",
         "surgeon price group",
         "avg total price",
+        "normalized score (0-100)",
         "all procedures",
         "all procedures code",
         "outcome group",
