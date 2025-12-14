@@ -34,6 +34,8 @@ REQUIRED_COLUMNS = {
     "all_ procedures code",
 }
 
+OPTIONAL_ACTIVITY_COLUMNS = ["actual activity", "actual activity code"]
+
 
 def first_non_null(series):
     for value in series:
@@ -50,6 +52,11 @@ def load_data(input_path: Path) -> pd.DataFrame:
     missing = REQUIRED_COLUMNS - set(df.columns)
     if missing:
         raise KeyError(f"Missing required columns: {sorted(missing)}")
+
+    # Ensure optional columns exist so outputs are consistent.
+    for col in OPTIONAL_ACTIVITY_COLUMNS:
+        if col not in df.columns:
+            df[col] = pd.NA
     return df
 
 
@@ -66,6 +73,8 @@ def aggregate_per_case(df: pd.DataFrame) -> pd.DataFrame:
             "hospital": first_non_null,
             "all_ procedures": first_non_null,
             "all_ procedures code": first_non_null,
+            "actual activity": first_non_null,
+            "actual activity code": first_non_null,
             "total price": "sum",
             "quantity": "sum",
         })
@@ -84,6 +93,8 @@ def aggregate_per_surgeon(per_case: pd.DataFrame) -> pd.DataFrame:
             "hospital": first_non_null,
             "all_ procedures": lambda s: ", ".join(sorted({str(v) for v in s if pd.notna(v)})),
             "all_ procedures code": lambda s: ", ".join(sorted({str(v) for v in s if pd.notna(v)})),
+            "actual activity": lambda s: ", ".join(sorted({str(v) for v in s if pd.notna(v)})),
+            "actual activity code": lambda s: ", ".join(sorted({str(v) for v in s if pd.notna(v)})),
         })
         .reset_index()
     )
@@ -103,6 +114,8 @@ def aggregate_per_surgeon(per_case: pd.DataFrame) -> pd.DataFrame:
         "hospital",
         "all procedures",
         "all procedures code",
+        "actual activity",
+        "actual activity code",
     ]]
     return per_surgeon
 

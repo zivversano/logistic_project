@@ -36,6 +36,8 @@ REQUIRED_COLUMNS = {
     "all_ procedures code",
 }
 
+OPTIONAL_ACTIVITY_COLUMNS = ["actual activity", "actual activity code"]
+
 
 def first_non_null(series):
     for value in series:
@@ -52,6 +54,11 @@ def load_data(input_path: Path) -> pd.DataFrame:
     missing = REQUIRED_COLUMNS - set(df.columns)
     if missing:
         raise KeyError(f"Missing required columns: {sorted(missing)}")
+
+    # Ensure optional columns exist so outputs are consistent.
+    for col in OPTIONAL_ACTIVITY_COLUMNS:
+        if col not in df.columns:
+            df[col] = pd.NA
     return df
 
 
@@ -79,6 +86,8 @@ def build_case_level(df: pd.DataFrame) -> pd.DataFrame:
             "surgeon score": first_non_null(g["surgeon score"]),
             "all_ procedures": first_non_null(g["all_ procedures"]),
             "all_ procedures code": first_non_null(g["all_ procedures code"]),
+            "actual activity": first_non_null(g["actual activity"]),
+            "actual activity code": first_non_null(g["actual activity code"]),
             "total price": g["total price"].sum(),
             "items": concat_items(g),
         }
@@ -151,6 +160,13 @@ def aggregate_combinations(case_df: pd.DataFrame) -> pd.DataFrame:
                 seen.append(val)
         return ", ".join(seen)
 
+    def unique_list(series):
+        seen = []
+        for val in series:
+            if pd.notna(val) and str(val) not in seen:
+                seen.append(str(val))
+        return ", ".join(seen)
+
     combo_df = (
         case_df.groupby("items")
         .agg({
@@ -161,6 +177,8 @@ def aggregate_combinations(case_df: pd.DataFrame) -> pd.DataFrame:
             "normalized score (0-100)": "mean",
             "all_ procedures": lambda s: ", ".join(sorted({str(v) for v in case_df.loc[s.index, "all_ procedures"] if pd.notna(v)})),
             "all_ procedures code": lambda s: ", ".join(sorted({str(v) for v in case_df.loc[s.index, "all_ procedures code"] if pd.notna(v)})),
+            "actual activity": lambda s: unique_list(case_df.loc[s.index, "actual activity"]),
+            "actual activity code": lambda s: unique_list(case_df.loc[s.index, "actual activity code"]),
             "outcome group": outcomes_list,
         })
         .reset_index()
@@ -187,6 +205,8 @@ def aggregate_combinations(case_df: pd.DataFrame) -> pd.DataFrame:
         "normalized score (0-100)",
         "all procedures",
         "all procedures code",
+        "actual activity",
+        "actual activity code",
         "outcome group",
     ]]
 

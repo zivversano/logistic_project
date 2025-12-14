@@ -23,6 +23,7 @@ import shutil
 import subprocess
 import sys
 from pathlib import Path
+import re
 
 import pandas as pd
 
@@ -78,40 +79,59 @@ def find_input_files() -> list[Path]:
 
 
 def build_prefix(input_file: Path) -> str:
-    # First word from filename (stem)
-    first_word = input_file.stem.split()[0] if input_file.stem else "file"
+    """Build output prefix from file content (not filename).
 
-    # Read first non-null Actual activity code value
+    Uses first non-null values of:
+    - actual activity
+    - actual activity code
+    """
+
+    def slugify(value: str, keep: str = "") -> str:
+        value = str(value or "").strip().lower()
+        if not value:
+            return ""
+        # Replace separators/spaces with underscores and drop other punctuation
+        pattern = rf"[^0-9a-zA-Z{re.escape(keep)}]+"
+        value = re.sub(pattern, "_", value)
+        value = re.sub(r"_+", "_", value).strip("_")
+        return value
+
+    activity_part = ""
+    code_part = ""
+
     try:
-        df = pd.read_excel(input_file, nrows=1)
+        df = pd.read_excel(input_file, nrows=200)
         df.columns = df.columns.str.strip().str.lower()
-        col = None
-        for c in df.columns:
-            if c == "actual activity code":
-                col = c
-                break
-        code_val = None
-        if col and not df.empty:
-            code_val = df.iloc[0][col]
-        code_part = str(code_val).strip() if code_val is not None else "code"
+
+        if "actual activity" in df.columns:
+            s = df["actual activity"].dropna()
+            if not s.empty:
+                activity_part = slugify(s.iloc[0])
+        if "actual activity code" in df.columns:
+            s = df["actual activity code"].dropna()
+            if not s.empty:
+                # keep dot in codes like 54.01
+                code_part = slugify(s.iloc[0], keep=".")
     except Exception:
+        # Fall back to placeholders
+        pass
+
+    if not activity_part:
+        activity_part = "activity"
+    if not code_part:
         code_part = "code"
 
-    # Sanitize pieces
-    def clean(s: str) -> str:
-        return s.replace(" ", "_")
-
-    return f"{clean(first_word)}_{clean(str(code_part))}"
+    return f"{activity_part}_{code_part}"
 
 
 def run_pipeline_for_file(input_file: Path) -> None:
     prefix = build_prefix(input_file)
     outputs = {
-        "compute_surgery_totals": ROOT / "summary_files" / f"{prefix}_case_surgery_totals.xlsx",
-        "compute_surgeon_averages": ROOT / "summary_files" / f"{prefix}_surgeon_avg_prices.xlsx",
-        "compute_case_items": ROOT / "summary_files" / f"{prefix}_case_items_detail.xlsx",
-        "compute_item_combinations": ROOT / "summary_files" / f"{prefix}_item_combinations.xlsx",
-        "compute_outcome_scores": ROOT / "summary_files" / f"{prefix}_case_outcome_scores.xlsx",
+        "compute_surgery_totals": ROOT / "summary_files" / f"{prefix}_case-surgery-totals.xlsx",
+        "compute_surgeon_averages": ROOT / "summary_files" / f"{prefix}_surgeon-avg-prices.xlsx",
+        "compute_case_items": ROOT / "summary_files" / f"{prefix}_case-items-detail.xlsx",
+        "compute_item_combinations": ROOT / "summary_files" / f"{prefix}_item-combinations.xlsx",
+        "compute_outcome_scores": ROOT / "summary_files" / f"{prefix}_case-outcome-scores.xlsx",
     }
 
     # Step 1: surgery totals

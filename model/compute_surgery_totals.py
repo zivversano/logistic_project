@@ -30,6 +30,8 @@ REQUIRED_COLUMNS = {
     "all_ procedures code",
 }
 
+OPTIONAL_ACTIVITY_COLUMNS = ["actual activity", "actual activity code"]
+
 
 def first_non_null(series):
     for value in series:
@@ -47,7 +49,29 @@ def load_data(input_path: Path) -> pd.DataFrame:
     missing = REQUIRED_COLUMNS - set(df.columns)
     if missing:
         raise KeyError(f"Missing required columns: {sorted(missing)}")
+
+    # Ensure optional columns exist so outputs are consistent.
+    for col in OPTIONAL_ACTIVITY_COLUMNS:
+        if col not in df.columns:
+            df[col] = pd.NA
     return df
+
+
+def attach_activity_columns(case_df: pd.DataFrame, source_df: pd.DataFrame) -> pd.DataFrame:
+    cols = [c for c in OPTIONAL_ACTIVITY_COLUMNS if c in source_df.columns]
+    if not cols:
+        return case_df
+
+    mapping = (
+        source_df[["case number"] + cols]
+        .groupby("case number", as_index=False)
+        .agg({c: first_non_null for c in cols})
+    )
+    merged = case_df.merge(mapping, on="case number", how="left")
+
+    # Place activity columns right after case number
+    ordered = ["case number"] + cols + [c for c in merged.columns if c not in (set(["case number"]) | set(cols))]
+    return merged[ordered]
 
 
 def aggregate(df: pd.DataFrame) -> pd.DataFrame:
@@ -88,6 +112,7 @@ def aggregate(df: pd.DataFrame) -> pd.DataFrame:
         "total quantity",
         "total price",
     ]]
+    grouped = attach_activity_columns(grouped, df)
     return grouped
 
 

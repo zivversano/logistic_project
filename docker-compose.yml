@@ -1,5 +1,3 @@
-version: "3.9"
-
 services:
   db:
     image: postgres:15-alpine
@@ -11,7 +9,7 @@ services:
     volumes:
       - pgdata:/var/lib/postgresql/data
     ports:
-      - "9090:5432"
+      - "15432:5432"
     healthcheck:
       test: ["CMD", "pg_isready", "-U", "logistic"]
       interval: 10s
@@ -20,7 +18,7 @@ services:
 
   pipeline:
     image: python:3.11-slim
-    container_name: logistic-pipeline
+    container_name: logistic-pipeline-app
     working_dir: /app
     volumes:
       - ./:/app
@@ -32,5 +30,20 @@ services:
     # Install deps (includes psycopg2-binary for DB connectivity) and keep watcher alive.
     command: ["/bin/sh", "-c", "pip install --no-cache-dir pandas openpyxl psycopg2-binary && python model/watch_data.py --interval 5"]
 
+  pgadmin:
+    image: dpage/pgadmin4:7
+    container_name: logistic-pgadmin-ui
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@pgadmin.com
+      PGADMIN_DEFAULT_PASSWORD: admin123
+    ports:
+      - "5050:80"
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+
 volumes:
   pgdata:
+  pgadmin_data:

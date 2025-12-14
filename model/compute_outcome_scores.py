@@ -95,6 +95,7 @@ WEIGHTS = {
 TOTAL_WEIGHT = sum(WEIGHTS.values())
 GOOD_THRESHOLD = 3 / 13
 MODERATE_THRESHOLD = 6 / 13
+OPTIONAL_ACTIVITY_COLUMNS = ["actual activity", "actual activity code"]
 
 
 def normalize_columns(df: pd.DataFrame) -> pd.DataFrame:
@@ -128,6 +129,19 @@ def agg_case_level(df: pd.DataFrame) -> pd.DataFrame:
     return grouped
 
 
+def attach_activity_columns(case_df: pd.DataFrame, source_df: pd.DataFrame) -> pd.DataFrame:
+    cols = [c for c in OPTIONAL_ACTIVITY_COLUMNS if c in source_df.columns]
+    if not cols:
+        return case_df
+
+    mapping = (
+        source_df[[COLS["case"]] + cols]
+        .groupby(COLS["case"], as_index=False)
+        .agg({c: lambda s: s.dropna().iloc[0] if not s.dropna().empty else None for c in cols})
+    )
+    return case_df.merge(mapping, on=COLS["case"], how="left")
+
+
 def evaluate_flags(row: pd.Series, thresholds: dict) -> dict:
     flags = {
         "er": pd.to_numeric(row[COLS["er"]], errors="coerce") == 1,
@@ -157,9 +171,14 @@ def group_outcome(score: float) -> str:
 
 def build_scores(df: pd.DataFrame) -> pd.DataFrame:
     df = normalize_columns(df)
+    # Ensure optional activity columns exist so outputs are consistent.
+    for col in OPTIONAL_ACTIVITY_COLUMNS:
+        if col not in df.columns:
+            df[col] = pd.NA
     ensure_columns(df)
     thresholds = compute_thresholds(df)
     cases = agg_case_level(df)
+    cases = attach_activity_columns(cases, df)
 
     records = []
     for _, row in cases.iterrows():
@@ -170,6 +189,8 @@ def build_scores(df: pd.DataFrame) -> pd.DataFrame:
         normalized_score = round((1 - score) * 100, 2)
         records.append({
             "case number": row[COLS["case"]],
+            "actual activity": row.get("actual activity", None),
+            "actual activity code": row.get("actual activity code", None),
             "positive parameters": positives,
             "score": score,
             "normalized score (0-100)": normalized_score,
